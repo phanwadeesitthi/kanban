@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Project Tracker - Bidding & Sales TOR Management</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Dashboard Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Font: Kanit & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        .horizontal-scrollbar::-webkit-scrollbar { height: 8px; }
+        .horizontal-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .horizontal-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .dark .horizontal-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        .col-scrollbar::-webkit-scrollbar { width: 5px; }
+        .col-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .col-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark .col-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* UI Depth & Shadow Enhancements */
+        .kanban-card {
+            box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .kanban-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px -5px rgba(225, 29, 72, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+        }
+        .dark .kanban-card {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+        }
+        .dark .kanban-card:hover {
+            box-shadow: 0 12px 28px -5px rgba(244, 63, 94, 0.22), 0 0 15px 1px rgba(244, 63, 94, 0.15);
+        }
+        .glass-header {
+            box-shadow: 0 4px 20px -1px rgba(0, 0, 0, 0.03);
+        }
+        .dark .glass-header {
+            box-shadow: 0 4px 20px -1px rgba(0, 0, 0, 0.4);
+        }
+        .kanban-col-dropzone {
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+        }
+        .dark .kanban-col-dropzone {
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+        }
+    </style>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+</head>
+<body class="text-slate-800 dark:text-slate-100 bg-[#f8fafc] dark:bg-slate-900 flex flex-col h-screen overflow-hidden transition-colors duration-200">
+
+    <!-- Login Modal Layer -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-700 text-center space-y-5">
+            <div class="w-14 h-14 bg-rose-100 dark:bg-rose-950 text-rose-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">เข้าสู่ระบบ Kanban Tracker</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">โปรดเลือกรายชื่อผู้ใช้งานเพื่อเข้าดูข้อมูลเฉพาะส่วนของคุณและคู่ Sales</p>
+            </div>
+
+            <div class="space-y-3 text-left">
+                <div>
+                    <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">ชื่อผู้ใช้งาน (Tele / OB Sales)</label>
+                    <select id="login-user-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-rose-600 font-medium">
+                        <option value="">-- เลือกรายชื่อผู้ใช้งาน --</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="handleLogin()" class="w-full py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-semibold text-xs shadow-md transition transform active:scale-95 flex items-center justify-center space-x-2 cursor-pointer">
+                <i class="fa-brands fa-microsoft"></i>
+                <span>เข้าสู่ระบบด้วย Microsoft 365</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="glass-header bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-800 dark:text-slate-100 border-b border-slate-200/80 dark:border-slate-700/80 flex-none z-30 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-rose-500 to-rose-700 p-2.5 rounded-2xl text-white shadow-md shadow-rose-500/20">
+                    <i class="fa-solid fa-square-kanban text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-base md:text-lg font-bold tracking-tight leading-tight text-slate-900 dark:text-slate-100">Project Tracker (Kanban)</h1>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">ระบบติดตามโครงการ Bidding / TOR / Sales Pipeline (Google Sheet Database)</p>
+                </div>
+            </div>
+
+            <!-- View Switcher Tabs -->
+            <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 mx-auto md:mx-0 shadow-inner">
+                <button id="view-btn-board" onclick="switchView('board')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-400 shadow-xs cursor-pointer">
+                    <i class="fa-solid fa-table-cells-large"></i>
+                    <span>กระดาน</span>
+                </button>
+                <button id="view-btn-dashboard" onclick="switchView('dashboard')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>แผนภูมิ (Dashboard)</span>
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- User Profile Display & Logout -->
+                <div id="current-user-badge" class="hidden items-center bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 px-3 py-1 rounded-xl text-xs font-semibold border border-rose-200 dark:border-rose-900">
+                    <i class="fa-solid fa-circle-user mr-1.5 text-rose-600"></i>
+                    <span id="current-user-name">User</span>
+                    <button onclick="handleLogout()" class="ml-2 text-slate-400 hover:text-rose-600 cursor-pointer" title="ออกจากระบบ"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-600 flex items-center transition shadow-xs cursor-pointer">
+                    <i id="theme-toggle-icon" class="fa-solid fa-moon mr-1.5 text-slate-600 dark:text-amber-400"></i>
+                    <span id="theme-toggle-text">โหมดมืด</span>
+                </button>
+
+                <button onclick="openModal()" class="bg-gradient-to-r from-rose-700 to-rose-800 hover:from-rose-800 hover:to-rose-900 dark:from-rose-600 dark:to-rose-700 text-white px-4 py-1.5 rounded-xl font-medium text-xs flex items-center shadow-md shadow-rose-700/20 transition transform active:scale-95 cursor-pointer border border-rose-600/30">
+                    <i class="fa-solid fa-plus mr-1.5"></i>สร้างโครงการใหม่
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toolbar / Search & Filters -->
+    <section class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 py-2.5 flex-none z-20 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2 flex-1">
+                <!-- Search Box -->
+                <div class="relative min-w-[200px] flex-1 md:flex-initial">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 dark:text-slate-400 text-xs"></i>
+                    <input type="text" id="search-input" oninput="handleFilterChange()" placeholder="ค้นหาชื่อโครงการ, TOR, Enduser..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-600 focus:bg-white dark:focus:bg-slate-900 text-slate-700 dark:text-slate-200 transition shadow-inner">
+                </div>
+
+                <!-- Sales Team Filter -->
+                <select id="filter-sales-team" onchange="handleFilterChange()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-600 font-medium text-slate-700 dark:text-slate-200 transition">
+                    <option value="">Sales Team</option>
+                </select>
+
+                <!-- Tele Name Filter -->
+                <select id="filter-tele-name" onchange="handleFilterChange()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-600 font-medium text-slate-700 dark:text-slate-200 transition">
+                    <option value="">Tele Name</option>
+                </select>
+
+                <!-- OB Name Filter -->
+                <select id="filter-ob-name" onchange="handleFilterChange()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-600 font-medium text-slate-700 dark:text-slate-200 transition">
+                    <option value="">OB Name</option>
+                </select>
+            </div>
+
+            <!-- Stats Overview Card -->
+            <div class="flex items-center space-x-3 text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-900/60 px-3.5 py-1.5 rounded-xl shadow-xs">
+                <div>รวม: <span id="stat-total-count" class="font-bold text-rose-700 dark:text-rose-400">0</span> โครงการ</div>
+                <div class="h-3 border-r border-rose-200 dark:border-rose-800"></div>
+                <div>มูลค่ารวม: <span id="stat-total-budget" class="font-bold text-rose-800 dark:text-rose-300">0</span> บาท</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Wrapper -->
+    <main class="flex-1 w-full overflow-hidden flex flex-col relative bg-[#f8fafc] dark:bg-slate-900 transition-colors">
+        
+        <!-- View 1: Kanban Board View -->
+        <div id="view-board-container" class="overflow-x-auto horizontal-scrollbar p-3.5 flex-1 h-full">
+            <div id="kanban-container" class="grid grid-flow-col auto-cols-[260px] sm:auto-cols-[280px] gap-3.5 min-w-max h-full pr-8">
+                <!-- Columns injected by JS -->
+            </div>
+        </div>
+
+        <!-- View 2: Dashboard Charts View -->
+        <div id="view-dashboard-container" class="hidden flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
+            
+            <!-- Dashboard Grid Section 1: Donut & Stage Summary -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                
+                <!-- Card 1: Status Donut Chart -->
+                <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-4 md:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex flex-col justify-between">
+                    <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-3 flex items-center">
+                        <i class="fa-solid fa-chart-pie text-rose-600 mr-2 text-base"></i>สถานะโครงการ (Donut View)
+                    </h3>
+                    <div class="relative w-full h-[220px] flex items-center justify-center">
+                        <canvas id="chart-status-donut"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span id="donut-center-count" class="text-2xl font-black text-slate-800 dark:text-slate-100">0</span>
+                            <span class="text-[11px] text-slate-400 font-medium">โครงการทั้งหมด</span>
+                        </div>
+                    </div>
+                    <div id="donut-legend" class="grid grid-cols-2 gap-1.5 pt-3 text-[11px] border-t border-slate-100 dark:border-slate-700/60 mt-2">
+                        <!-- Legend items injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Card 2: Bar Chart - Budget per Stage -->
+                <div class="lg:col-span-2 bg-white dark:bg-slate-800/90 rounded-2xl p-4 md:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center">
+                            <i class="fa-solid fa-chart-column text-indigo-500 mr-2 text-base"></i>มูลค่า Total Sales แยกตาม Sales Stage
+                        </h3>
+                        <span class="text-xs text-slate-400">(บาท)</span>
+                    </div>
+                    <div class="w-full h-[250px] relative">
+                        <canvas id="chart-stage-bar"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Grid Section 2: Team & Brand Analytics -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                
+                <!-- Card 3: Brand Distribution -->
+                <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-4 md:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                    <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-3 flex items-center">
+                        <i class="fa-solid fa-tags text-sky-500 mr-2 text-base"></i>มูลค่าโครงการแยกตาม Brand / Com Group
+                    </h3>
+                    <div class="w-full h-[250px] relative">
+                        <canvas id="chart-brand-bar"></canvas>
+                    </div>
+                </div>
+
+                <!-- Card 4: Sales Performance (Tele & OB) -->
+                <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-4 md:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                    <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-3 flex items-center">
+                        <i class="fa-solid fa-users text-emerald-500 mr-2 text-base"></i>ผลงาน Sales (จำนวนงานแยกรายบุคคล Tele & OB)
+                    </h3>
+                    <div class="w-full h-[250px] relative">
+                        <canvas id="chart-sales-person"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal Form for Create / Edit Project -->
+    <div id="project-modal" class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl max-w-4xl w-[95vw] max-h-[92vh] flex flex-col my-auto overflow-hidden border border-slate-200 dark:border-slate-700 transition-colors">
+            <!-- Modal Header -->
+            <div class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex justify-between items-center shrink-0">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <i class="fa-solid fa-pen-to-square text-base"></i>
+                    </div>
+                    <h3 id="modal-title" class="font-bold text-base text-slate-800 dark:text-slate-100">สร้างรายการโครงการใหม่</h3>
+                </div>
+                <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="project-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-6 overflow-y-auto custom-scrollbar text-sm text-slate-700 dark:text-slate-200">
+                <input type="hidden" id="project-id">
+
+                <!-- Step 1: Sales Team & Staff -->
+                <div id="section-step-1" class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <h4 class="font-bold text-sm text-rose-800 dark:text-rose-400 flex items-center">
+                            <span id="badge-step-1" class="bg-rose-800 dark:bg-rose-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs">1</span>
+                            ข้อมูล Sales & แบรนด์
+                        </h4>
+                        <span id="lock-status-1" class="text-[11px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900">Step 1 จาก 5</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Sales Team *</label>
+                            <select id="sales-team" onchange="handleSalesTeamChange(this.value); checkStepUnlock();" required class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                                <option value="" disabled selected>-- เลือก Sales Team --</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Brand & Com Group</label>
+                            <input type="text" id="brand-comgroup" placeholder="เช่น Lenovo / HP" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+
+                        <div class="relative">
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Tele Sales *</label>
+                            <input type="text" id="tele-sales" autocomplete="off" onfocus="handleTeleSalesInput(this.value)" onclick="handleTeleSalesInput(this.value)" oninput="handleTeleSalesInput(this.value); checkStepUnlock();" placeholder="พิมพ์ค้นหา Tele Sales..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                            <div id="tele-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 hidden"></div>
+                            <i class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-8 text-[10px] text-slate-400"></i>
+                        </div>
+
+                        <div class="relative">
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Outbound Sales *</label>
+                            <input type="text" id="outbound-sales" autocomplete="off" onfocus="handleObSalesInput(this.value)" onclick="handleObSalesInput(this.value)" oninput="handleObSalesInput(this.value); checkStepUnlock();" placeholder="พิมพ์ค้นหา Outbound Sales..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                            <div id="ob-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 hidden"></div>
+                            <i class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-8 text-[10px] text-slate-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Dealer Info -->
+                <div id="section-step-2" class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 opacity-50 pointer-events-none transition-all duration-200">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <h4 class="font-bold text-sm text-rose-800 dark:text-rose-400 flex items-center">
+                            <span id="badge-step-2" class="bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs">2</span>
+                            ข้อมูล Dealer
+                        </h4>
+                        <span id="lock-status-2" class="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700"><i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 1 ก่อน</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="relative">
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Customer Code *</label>
+                            <input type="text" id="dealer-code" autocomplete="off" onfocus="handleDealerCodeInput(this.value)" onclick="handleDealerCodeInput(this.value)" oninput="handleDealerCodeInput(this.value); checkStepUnlock();" placeholder="รหัสลูกค้า..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                            <div id="code-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 hidden"></div>
+                            <i class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-8 text-[10px] text-slate-400"></i>
+                        </div>
+
+                        <div class="relative">
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Customer Name *</label>
+                            <input type="text" id="dealer-name" autocomplete="off" onfocus="handleDealerNameInput(this.value)" onclick="handleDealerNameInput(this.value)" oninput="handleDealerNameInput(this.value); checkStepUnlock();" placeholder="ชื่อบริษัท Dealer..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                            <div id="dealer-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 hidden"></div>
+                            <i class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-8 text-[10px] text-slate-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Enduser & Project Info -->
+                <div id="section-step-3" class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 opacity-50 pointer-events-none transition-all duration-200">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <h4 class="font-bold text-sm text-rose-800 dark:text-rose-400 flex items-center">
+                            <span id="badge-step-3" class="bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs">3</span>
+                            ข้อมูล Enduser & โครงการ
+                        </h4>
+                        <span id="lock-status-3" class="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700"><i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Enduser Name *</label>
+                            <input type="text" id="enduser-name" placeholder="ชื่อหน่วยงาน / โรงเรียน / รพ..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">จังหวัด</label>
+                            <input type="text" id="enduser-province" placeholder="จังหวัด..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">ชื่อผู้ติดต่อ</label>
+                            <input type="text" id="contact-name" placeholder="ชื่อ-นามสกุล..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Email</label>
+                            <input type="email" id="contact-email" placeholder="email@example.com" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">เบอร์โทร</label>
+                            <input type="text" id="contact-phone" placeholder="08X-XXX-XXXX" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Project Name (ชื่อโครงการตาม TOR) *</label>
+                        <input type="text" id="project-name" required placeholder="เช่น ซื้อเครื่องคอมพิวเตอร์ประมวลผล..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">รายละเอียด TOR / Spec</label>
+                            <textarea id="tor-detail" rows="2" placeholder="รายละเอียดคุณลักษณะ..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">เงื่อนไขเพิ่มเติม (Attach File)</label>
+                            <textarea id="condition-attach" rows="2" placeholder="เงื่อนไขหรือลิงก์ไฟล์แนบ..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Budget & Sales Stage -->
+                <div id="section-step-4" class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 opacity-50 pointer-events-none transition-all duration-200">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <h4 class="font-bold text-sm text-rose-800 dark:text-rose-400 flex items-center">
+                            <span id="badge-step-4" class="bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs">4</span>
+                            งบประมาณ & เอกสาร (Budget)
+                        </h4>
+                        <span id="lock-status-4" class="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700"><i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">งบประมาณโครงการ (บาท)</label>
+                            <input type="number" id="budget" min="0" step="1000" placeholder="0" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+
+                        <div class="flex items-center space-x-4 pt-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="doc-appointment" class="rounded text-rose-700 focus:ring-rose-600 w-4 h-4">
+                                <span class="ml-2 text-xs">หนังสือแต่งตั้ง</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="doc-certificate" class="rounded text-rose-700 focus:ring-rose-600 w-4 h-4">
+                                <span class="ml-2 text-xs">แคตตาล็อก/Cert</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">วันยื่นซอง / เปิดซอง</label>
+                            <input type="date" id="submit-date" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">วันประกาศผล</label>
+                            <input type="date" id="announce-date" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Sales Stage & Priority -->
+                <div id="section-step-5" class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 opacity-50 pointer-events-none transition-all duration-200">
+                    <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <h4 class="font-bold text-sm text-rose-800 dark:text-rose-400 flex items-center">
+                            <span id="badge-step-5" class="bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs">5</span>
+                            สถานะการขาย & กำหนดติดตาม (Sales Stage & Priority)
+                        </h4>
+                        <span id="lock-status-5" class="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700"><i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-1">
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">โครงการอยู่ในขั้นไหน *</label>
+                            <select id="sales-stage" required class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                                <option value="" disabled selected>-- เลือกสถานะการขาย --</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">กำหนดติดตามครั้งถัดไป</label>
+                            <input type="date" id="next-followup-date" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">ระดับความสำคัญ (Priority)</label>
+                            <select id="project-priority" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none">
+                                <option value="ปกติ" selected>ปกติ (Normal)</option>
+                                <option value="ปานกลาง">ปานกลาง (Medium)</option>
+                                <option value="ด่วนสูง">ด่วนสูง (High)</option>
+                                <option value="ด่วนมาก">ด่วนมาก/วิกฤต (Urgent)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between items-center">
+                    <button type="button" id="btn-delete" onclick="deleteProject()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900 dark:text-rose-300 border border-rose-200 dark:border-rose-900 px-4 py-2 rounded-xl text-xs font-semibold transition hidden cursor-pointer">
+                        <i class="fa-solid fa-trash-can mr-1.5"></i>ลบโครงการนี้
+                    </button>
+                    <div class="flex space-x-2 ml-auto">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">ยกเลิก</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold shadow-md transition transform active:scale-95 cursor-pointer">บันทึกข้อมูล</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 dark:bg-slate-800 text-white px-4 py-3 rounded-2xl shadow-2xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 border border-slate-700">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toast-message" class="text-sm font-medium">ทำรายการสำเร็จ</span>
+    </div>
+
+    <script>
+        let projects = [];
+        let currentView = "board";
+        const DEALER_MASTER = [];
+        let TEAMS = [];
+
+        const gs = (fn, ...a) => new Promise((ok, fail) => {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn](...a);
+            } else {
+                fail(new Error("ไม่ได้รันผ่าน Google Apps Script Environment"));
+            }
+        });
+        const errMsg = e => (e && e.message) || e;
+
+        const LS = {
+            get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+            set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
+            remove: k => { try { localStorage.removeItem(k); } catch (e) {} }
+        };
+
+        let currentUser = LS.get("kanban_user") || "";
+
+        function setDealers(list) {
+            DEALER_MASTER.length = 0;
+            (list || []).forEach(d => DEALER_MASTER.push(d));
+        }
+
+        const COLUMNS = [
+            { id: "20%", title: "ส่งลงทะเบียนโครงการ (Register Project)", borderColor: "border-amber-400", badgeBg: "bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300", colorCode: "#f59e0b" },
+            { id: "40%", title: "เสนอสเปก/ราคา (Spec / Quote)", borderColor: "border-sky-400", badgeBg: "bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-300", colorCode: "#38bdf8" },
+            { id: "60%", title: "ทดสอบ/สาธิต (POC / Demo)", borderColor: "border-indigo-400", badgeBg: "bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-300", colorCode: "#818cf8" },
+            { id: "80%", title: "ประมูล/ราคาสุดท้าย (Bidding)", borderColor: "border-purple-400", badgeBg: "bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300", colorCode: "#c084fc" },
+            { id: "90%", title: "ชนะประมูล (WIN)", borderColor: "border-emerald-500", badgeBg: "bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300", colorCode: "#10b981" },
+            { id: "100%", title: "ได้รับ PO แล้ว (PO Received)", borderColor: "border-teal-500", badgeBg: "bg-teal-100 dark:bg-teal-950 text-teal-900 dark:text-teal-300", colorCode: "#14b8a6" },
+            { id: "0%", title: "ไม่ได้งาน (Loss)", borderColor: "border-slate-300 dark:border-slate-700", badgeBg: "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300", colorCode: "#94a3b8" }
+        ];
+
+        let chartStatusDonut = null;
+        let chartStageBar = null;
+        let chartBrandBar = null;
+        let chartSalesPerson = null;
+
+        function checkUserAuth() {
+            const overlay = document.getElementById("login-overlay");
+            const userBadge = document.getElementById("current-user-badge");
+            const userNameText = document.getElementById("current-user-name");
+
+            if (!currentUser) {
+                if (overlay) overlay.classList.remove("hidden");
+                if (userBadge) userBadge.classList.add("hidden");
+            } else {
+                if (overlay) overlay.classList.add("hidden");
+                if (userBadge) userBadge.classList.remove("hidden");
+                if (userNameText) userNameText.innerText = currentUser === "ADMIN" ? "ADMIN" : currentUser.split(' ')[0];
+            }
+        }
+
+        function handleLogin() {
+            const select = document.getElementById("login-user-select");
+            const selectedUser = select ? select.value : "";
+            if (!selectedUser) {
+                alert("โปรดเลือกรายชื่อผู้ใช้งานก่อนเข้าสู่ระบบ");
+                return;
+            }
+            currentUser = selectedUser;
+            LS.set("kanban_user", currentUser);
+            checkUserAuth();
+            handleFilterChange();
+        }
+
+        function handleLogout() {
+            currentUser = "";
+            LS.remove("kanban_user");
+            checkUserAuth();
+        }
+
+        function updateLoginUserOptions() {
+            const select = document.getElementById("login-user-select");
+            if (!select) return;
+
+            const names = new Set();
+            DEALER_MASTER.forEach(d => {
+                if (d.teleName && d.teleName.trim()) names.add(d.teleName.trim());
+                if (d.obName && d.obName.trim()) names.add(d.obName.trim());
+            });
+            projects.forEach(p => {
+                if (p.teleSales && p.teleSales.trim()) names.add(p.teleSales.trim());
+                if (p.outboundSales && p.outboundSales.trim()) names.add(p.outboundSales.trim());
+            });
+
+            const sortedNames = Array.from(names).sort();
+            
+            select.innerHTML = `<option value="">-- เลือกรายชื่อผู้ใช้งาน --</option>` +
+                `<option value="ADMIN">👑 ผู้ดูแลระบบ (ดูได้ทั้งหมด)</option>` +
+                `<option value="Phanwadee_Si Sitthikedkan">Phanwadee_Si Sitthikedkan</option>` +
+                `<option value="Pakawat Sangsuk">Pakawat Sangsuk</option>` +
+                sortedNames.filter(n => n !== "Phanwadee_Si Sitthikedkan" && n !== "Pakawat Sangsuk").map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            
+            if (currentUser) {
+                select.value = currentUser;
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+            const boardContainer = document.getElementById("view-board-container");
+            const dashboardContainer = document.getElementById("view-dashboard-container");
+            const btnBoard = document.getElementById("view-btn-board");
+            const btnDashboard = document.getElementById("view-btn-dashboard");
+
+            if (view === "board") {
+                boardContainer.classList.remove("hidden");
+                dashboardContainer.classList.add("hidden");
+                btnBoard.className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-400 shadow-xs cursor-pointer";
+                btnDashboard.className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer";
+                renderBoard();
+            } else {
+                boardContainer.classList.add("hidden");
+                dashboardContainer.classList.remove("hidden");
+                btnDashboard.className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-400 shadow-xs cursor-pointer";
+                btnBoard.className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer";
+                renderDashboard();
+            }
+        }
+
+        function handleFilterChange() {
+            if (currentView === "board") {
+                renderBoard();
+            } else {
+                renderDashboard();
+            }
+        }
+
+        function getFilteredProjects() {
+            const searchQuery = (document.getElementById("search-input") ? document.getElementById("search-input").value : "").trim().toLowerCase();
+            const salesTeamFilter = document.getElementById("filter-sales-team") ? document.getElementById("filter-sales-team").value : "";
+            const teleNameFilter = document.getElementById("filter-tele-name") ? document.getElementById("filter-tele-name").value : "";
+            const obNameFilter = document.getElementById("filter-ob-name") ? document.getElementById("filter-ob-name").value : "";
+
+            return projects.filter(p => {
+                if (currentUser && currentUser !== "ADMIN") {
+                    const teleName = (p.teleSales || "").trim().toLowerCase();
+                    const obName = (p.outboundSales || "").trim().toLowerCase();
+                    const userClean = currentUser.trim().toLowerCase();
+                    const isMyProject = teleName.includes(userClean) || obName.includes(userClean);
+                    if (!isMyProject) return false;
+                }
+
+                const matchQuery = !searchQuery || 
+                    (p.projectName || "").toLowerCase().includes(searchQuery) ||
+                    (p.dealerName || "").toLowerCase().includes(searchQuery) ||
+                    (p.enduserName || "").toLowerCase().includes(searchQuery) ||
+                    (p.torDetail || "").toLowerCase().includes(searchQuery);
+
+                const matchSalesTeam = !salesTeamFilter || (p.salesTeam || "") === salesTeamFilter;
+                const matchTeleName = !teleNameFilter || (p.teleSales || "") === teleNameFilter;
+                const matchObName = !obNameFilter || (p.outboundSales || "") === obNameFilter;
+
+                return matchQuery && matchSalesTeam && matchTeleName && matchObName;
+            });
+        }
+
+        function renderBoard() {
+            const container = document.getElementById("kanban-container");
+            if (!container) return;
+
+            const filteredProjects = getFilteredProjects();
+
+            const totalCount = filteredProjects.length;
+            const totalBudget = filteredProjects.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
+            
+            const countEl = document.getElementById("stat-total-count");
+            const budgetEl = document.getElementById("stat-total-budget");
+            if (countEl) countEl.innerText = totalCount.toLocaleString();
+            if (budgetEl) budgetEl.innerText = totalBudget.toLocaleString();
+
+            updateFilterOptions();
+
+            const priorityWeight = {
+                "ด่วนมาก": 4,
+                "ด่วนสูง": 3,
+                "ปานกลาง": 2,
+                "ปกติ": 1
+            };
+
+            container.innerHTML = COLUMNS.map(col => {
+                let colProjects = filteredProjects.filter(p => (p.salesStage || "20%") === col.id);
+                
+                colProjects.sort((a, b) => {
+                    const wA = priorityWeight[a.priority || "ปกติ"] || 1;
+                    const wB = priorityWeight[b.priority || "ปกติ"] || 1;
+                    if (wA !== wB) return wB - wA;
+                    return (b.id || "").localeCompare(a.id || "");
+                });
+
+                const colBudgetTotal = colProjects.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
+
+                return `
+                    <div ondragover="handleDragOver(event)" 
+                         ondragleave="handleDragLeave(event)" 
+                         ondrop="handleDrop(event, '${col.id}')" 
+                         class="kanban-col-dropzone flex flex-col h-full bg-[#f1f5f9]/70 dark:bg-slate-800/50 rounded-[1.25rem] p-3 border-2 border-transparent transition-all duration-200 shadow-xs">
+                        
+                        <div class="flex justify-between items-center pb-2 mb-2 border-b-2 ${col.borderColor} px-1 pointer-events-none">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-xs ${col.badgeBg} px-2.5 py-0.5 rounded-full shadow-xs">${col.id}</span>
+                                <h3 class="font-bold text-xs text-slate-800 dark:text-slate-200">${escapeHtml(col.title)}</h3>
+                            </div>
+                            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full shadow-xs border border-slate-200 dark:border-slate-600">${colProjects.length}</span>
+                        </div>
+
+                        <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2.5 px-1 flex justify-between pointer-events-none">
+                            <span>Total sales:</span>
+                            <span class="text-rose-700 dark:text-rose-400 font-bold">฿${colBudgetTotal.toLocaleString()}</span>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto col-scrollbar space-y-3 pr-0.5 min-h-[150px]">
+                            ${colProjects.length === 0 ? `
+                                <div class="h-28 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 dark:text-slate-500 text-xs text-center p-2 pointer-events-none">
+                                    <i class="fa-regular fa-folder-open text-xl mb-1 opacity-50"></i>
+                                    <span>ไม่มีรายการ</span>
+                                </div>
+                            ` : colProjects.map(p => renderCardHTML(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderCardHTML(p) {
+            const getFirstName = (name) => {
+                if (!name) return '';
+                const clean = name.trim().replace(/_/g, ' ');
+                return clean.split(' ')[0] || clean;
+            };
+
+            const teleShort = getFirstName(p.teleSales);
+            const obShort = getFirstName(p.outboundSales);
+
+            let priorityBadge = '';
+            const prio = p.priority || 'ปกติ';
+            if (prio === 'ด่วนมาก') {
+                priorityBadge = `<span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center shrink-0"><i class="fa-solid fa-fire mr-0.5"></i>ด่วนมาก</span>`;
+            } else if (prio === 'ด่วนสูง') {
+                priorityBadge = `<span class="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center shrink-0"><i class="fa-solid fa-bolt mr-0.5"></i>ด่วนสูง</span>`;
+            } else if (prio === 'ปานกลาง') {
+                priorityBadge = `<span class="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold flex items-center shrink-0"><i class="fa-solid fa-clock mr-0.5"></i>ปานกลาง</span>`;
+            } else {
+                priorityBadge = `<span class="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[9px] px-1.5 py-0.5 rounded font-medium flex items-center shrink-0">ปกติ</span>`;
+            }
+
+            return `
+                <div id="card-${p.id}" 
+                     draggable="true" 
+                     ondragstart="handleDragStart(event, '${p.id}')" 
+                     ondragend="handleDragEnd(event)" 
+                     onclick="openModal('${p.id}')" 
+                     class="kanban-card bg-white dark:bg-slate-800/95 rounded-2xl p-3.5 shadow-xs hover:shadow-lg border border-slate-200/80 dark:border-slate-700/80 hover:border-rose-400 dark:hover:border-rose-500 transition-all duration-200 cursor-grab active:cursor-grabbing space-y-2.5 relative group select-none">
+                    
+                    <div class="flex justify-between items-center gap-1 text-[11px] pointer-events-none">
+                        <div class="flex items-center space-x-1 flex-wrap gap-y-1">
+                            <span class="font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-slate-600">${escapeHtml(p.salesStage || '20%')}</span>
+                            ${priorityBadge}
+                        </div>
+                        <span class="font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/80 px-2 py-0.5 rounded-lg border border-rose-100 dark:border-rose-900/60 shrink-0">฿${(parseFloat(p.budget) || 0).toLocaleString()}</span>
+                    </div>
+
+                    <div class="space-y-1 pointer-events-none">
+                        <div class="bg-rose-50/40 dark:bg-slate-900/60 border border-rose-100/60 dark:border-slate-700/60 rounded-xl p-2 text-xs">
+                            <div class="font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                <i class="fa-solid fa-store text-rose-600 dark:text-rose-400 mr-1.5 text-xs shrink-0"></i>
+                                <span class="truncate">${escapeHtml(p.dealerName || 'ไม่ระบุ Dealer')}</span>
+                            </div>
+                            ${p.dealerCode ? `<div class="text-[10px] text-slate-400 dark:text-slate-500 ml-4 font-mono font-medium">(${escapeHtml(p.dealerCode)})</div>` : ''}
+                        </div>
+
+                        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center px-0.5 pt-0.5">
+                            <i class="fa-solid fa-building text-slate-400 dark:text-slate-500 mr-1.5 text-xs shrink-0"></i>
+                            <span class="truncate">${escapeHtml(p.enduserName || 'ไม่ระบุ Enduser')}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug border-t border-slate-100 dark:border-slate-700/80 pt-2 pointer-events-none">
+                        ${escapeHtml(p.projectName)}
+                    </div>
+
+                    ${(p.nextFollowupDate || p.docAppointment || p.docCertificate || p.submitDate) ? `
+                        <div class="flex flex-wrap items-center gap-1.5 pt-1 pointer-events-none text-[10px]">
+                            ${p.nextFollowupDate ? `
+                                <span class="inline-flex items-center text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/80 px-2 py-0.5 rounded-md border border-rose-200/80 dark:border-rose-900/60 font-bold" title="กำหนดติดตามถัดไป">
+                                    <i class="fa-solid fa-bell mr-1 text-[9px] animate-bounce text-rose-600"></i>ตาม: ${escapeHtml(p.nextFollowupDate)}
+                                </span>
+                            ` : ''}
+                            ${p.submitDate ? `
+                                <span class="inline-flex items-center text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 font-medium">
+                                    <i class="fa-regular fa-calendar-days mr-1 text-[9px]"></i>${escapeHtml(p.submitDate)}
+                                </span>
+                            ` : ''}
+                            ${p.docAppointment ? `
+                                <span class="inline-flex items-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900/40 font-medium" title="มีหนังสือแต่งตั้ง">
+                                    <i class="fa-solid fa-file-signature mr-1 text-[9px]"></i>แต่งตั้ง
+                                </span>
+                            ` : ''}
+                            ${p.docCertificate ? `
+                                <span class="inline-flex items-center text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded-md border border-sky-200/60 dark:border-sky-900/40 font-medium" title="มี Catalog/Cert">
+                                    <i class="fa-solid fa-certificate mr-1 text-[9px]"></i>Cert
+                                </span>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+
+                    <div class="flex items-center justify-between gap-1 text-[10px] pt-1.5 border-t border-slate-100 dark:border-slate-700/80 pointer-events-none">
+                        <span class="text-slate-500 dark:text-slate-400 font-medium truncate max-w-[90px]">
+                            <i class="fa-solid fa-tag text-[9px] text-slate-400 mr-1"></i>${escapeHtml(p.brandComGroup || '-')}
+                        </span>
+
+                        <div class="flex items-center gap-1 shrink-0">
+                            ${teleShort ? `
+                                <span class="bg-rose-100/80 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 px-1.5 py-0.5 rounded-md font-semibold border border-rose-200/60 dark:border-rose-900/60" title="Tele Sales: ${escapeHtml(p.teleSales)}">
+                                    <i class="fa-solid fa-headset mr-0.5 text-[8px]"></i>${escapeHtml(teleShort)}
+                                </span>
+                            ` : ''}
+                            ${obShort ? `
+                                <span class="bg-indigo-100/80 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 px-1.5 py-0.5 rounded-md font-semibold border border-indigo-200/60 dark:border-indigo-900/60" title="Outbound Sales: ${escapeHtml(p.outboundSales)}">
+                                    <i class="fa-solid fa-user-tie mr-0.5 text-[8px]"></i>${escapeHtml(obShort)}
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard() {
+            const filteredProjects = getFilteredProjects();
+
+            const totalCount = filteredProjects.length;
+            const totalBudget = filteredProjects.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
+            
+            const countEl = document.getElementById("stat-total-count");
+            const budgetEl = document.getElementById("stat-total-budget");
+            const donutCenterEl = document.getElementById("donut-center-count");
+            
+            if (countEl) countEl.innerText = totalCount.toLocaleString();
+            if (budgetEl) budgetEl.innerText = totalBudget.toLocaleString();
+            if (donutCenterEl) donutCenterEl.innerText = totalCount;
+
+            const isDark = document.documentElement.classList.contains("dark");
+            const textColor = isDark ? "#cbd5e1" : "#475569";
+            const gridColor = isDark ? "rgba(71, 85, 105, 0.3)" : "rgba(226, 232, 240, 0.8)";
+
+            renderStatusDonutChart(filteredProjects, textColor);
+            renderStageBudgetBarChart(filteredProjects, textColor, gridColor);
+            renderBrandBarChart(filteredProjects, textColor, gridColor);
+            renderSalesPersonChart(filteredProjects, textColor, gridColor);
+        }
+
+        function renderStatusDonutChart(list, textColor) {
+            const canvas = document.getElementById("chart-status-donut");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            const counts = COLUMNS.map(col => list.filter(p => (p.salesStage || "20%") === col.id).length);
+            const labels = COLUMNS.map(col => col.id);
+            const colors = COLUMNS.map(col => col.colorCode);
+
+            if (chartStatusDonut) chartStatusDonut.destroy();
+
+            chartStatusDonut = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: document.documentElement.classList.contains("dark") ? "#1e293b" : "#ffffff",
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => ` ${context.label}: ${context.raw} โครงการ`
+                            }
+                        }
+                    }
+                }
+            });
+
+            const legendEl = document.getElementById("donut-legend");
+            if (legendEl) {
+                legendEl.innerHTML = COLUMNS.map((col, i) => `
+                    <div class="flex items-center space-x-1.5 truncate">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${col.colorCode}"></span>
+                        <span class="text-slate-600 dark:text-slate-400 truncate">${col.id}: <b>${counts[i]}</b></span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderStageBudgetBarChart(list, textColor, gridColor) {
+            const canvas = document.getElementById("chart-stage-bar");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            const budgets = COLUMNS.map(col => {
+                return list.filter(p => (p.salesStage || "20%") === col.id)
+                           .reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
+            });
+            const labels = COLUMNS.map(col => col.id);
+            const colors = COLUMNS.map(col => col.colorCode);
+
+            if (chartStageBar) chartStageBar.destroy();
+
+            chartStageBar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Sales (บาท)',
+                        data: budgets,
+                        backgroundColor: colors,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => ` Total Sales: ฿${context.raw.toLocaleString()} บาท`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: textColor }, grid: { display: false } },
+                        y: { 
+                            ticks: { 
+                                color: textColor,
+                                callback: (v) => '฿' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k')
+                            }, 
+                            grid: { color: gridColor } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBrandBarChart(list, textColor, gridColor) {
+            const canvas = document.getElementById("chart-brand-bar");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            const brandMap = {};
+            list.forEach(p => {
+                const b = (p.brandComGroup || "ไม่ระบุ").trim();
+                brandMap[b] = (brandMap[b] || 0) + (parseFloat(p.budget) || 0);
+            });
+
+            const sortedBrands = Object.entries(brandMap).sort((a, b) => b[1] - a[1]).slice(0, 7);
+            const labels = sortedBrands.map(item => item[0]);
+            const data = sortedBrands.map(item => item[1]);
+
+            if (chartBrandBar) chartBrandBar.destroy();
+
+            chartBrandBar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'มูลค่ารวม (บาท)',
+                        data: data,
+                        backgroundColor: '#38bdf8',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => ` ฿${context.raw.toLocaleString()} บาท`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            ticks: { 
+                                color: textColor,
+                                callback: (v) => '฿' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k')
+                            }, 
+                            grid: { color: gridColor } 
+                        },
+                        y: { ticks: { color: textColor }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderSalesPersonChart(list, textColor, gridColor) {
+            const canvas = document.getElementById("chart-sales-person");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            const personMap = {};
+            list.forEach(p => {
+                const tele = (p.teleSales || "").trim().split(' ')[0];
+                const ob = (p.outboundSales || "").trim().split(' ')[0];
+
+                if (tele) personMap[tele] = (personMap[tele] || 0) + 1;
+                if (ob && ob !== tele) personMap[ob] = (personMap[ob] || 0) + 1;
+            });
+
+            const sortedPersons = Object.entries(personMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const labels = sortedPersons.map(item => item[0]);
+            const data = sortedPersons.map(item => item[1]);
+
+            if (chartSalesPerson) chartSalesPerson.destroy();
+
+            chartSalesPerson = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'จำนวนโครงการ',
+                        data: data,
+                        backgroundColor: '#10b981',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => ` ${context.raw} โครงการ`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: textColor }, grid: { display: false } },
+                        y: { 
+                            ticks: { color: textColor, stepSize: 1 }, 
+                            grid: { color: gridColor } 
+                        }
+                    }
+                }
+            });
+        }
+
+        let draggedProjectId = null;
+
+        function handleDragStart(e, id) {
+            draggedProjectId = id;
+            if (e.dataTransfer) {
+                e.dataTransfer.setData("text/plain", id);
+                e.dataTransfer.effectAllowed = "move";
+            }
+            const card = document.getElementById(`card-${id}`);
+            if (card) {
+                card.classList.add("opacity-40", "scale-95");
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (draggedProjectId) {
+                const card = document.getElementById(`card-${draggedProjectId}`);
+                if (card) {
+                    card.classList.remove("opacity-40", "scale-95");
+                }
+            }
+            draggedProjectId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = "move";
+            }
+            const col = e.currentTarget;
+            if (col) {
+                col.classList.add("border-rose-600", "bg-rose-100/30", "dark:bg-rose-950/20");
+            }
+        }
+
+        function handleDragLeave(e) {
+            const col = e.currentTarget;
+            if (col && !col.contains(e.relatedTarget)) {
+                col.classList.remove("border-rose-600", "bg-rose-100/30", "dark:bg-rose-950/20");
+            }
+        }
+
+        function handleDrop(e, targetStageId) {
+            e.preventDefault();
+            const col = e.currentTarget;
+            col.classList.remove("border-rose-600", "bg-rose-100/30", "dark:bg-rose-950/20");
+
+            const projId = (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "") || draggedProjectId;
+            if (!projId) return;
+
+            const targetProj = projects.find(p => p.id === projId);
+            if (targetProj && targetProj.salesStage !== targetStageId) {
+                targetProj.salesStage = targetStageId;
+                targetProj.updatedAt = new Date().toISOString();
+
+                saveData(targetProj);
+                showToast(`ย้าย "${targetProj.projectName || 'โครงการ'}" ไปยัง ${targetStageId} เรียบร้อยแล้ว`);
+            }
+        }
+
+        function updateFilterOptions() {
+            const teamSelect = document.getElementById("filter-sales-team");
+            const teleSelect = document.getElementById("filter-tele-name");
+            const obSelect = document.getElementById("filter-ob-name");
+
+            if (!teamSelect || !teleSelect || !obSelect) return;
+
+            const currentTeam = teamSelect.value;
+            const currentTele = teleSelect.value;
+            const currentOb = obSelect.value;
+
+            const teams = [...new Set([...TEAMS, ...projects.map(p => (p.salesTeam || "").trim())].filter(Boolean))].sort();
+            const teles = [...new Set(projects.map(p => (p.teleSales || "").trim()).filter(Boolean))].sort();
+            const obs = [...new Set(projects.map(p => (p.outboundSales || "").trim()).filter(Boolean))].sort();
+
+            teamSelect.innerHTML = `<option value="">Sales Team</option>` +
+                teams.map(t => `<option value="${escapeHtml(t)}" ${t === currentTeam ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+
+            teleSelect.innerHTML = `<option value="">Tele Name</option>` +
+                teles.map(t => `<option value="${escapeHtml(t)}" ${t === currentTele ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+
+            obSelect.innerHTML = `<option value="">OB Name</option>` +
+                obs.map(o => `<option value="${escapeHtml(o)}" ${o === currentOb ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('');
+        }
+
+        function saveData(p) {
+            if (currentView === "board") {
+                renderBoard();
+            } else {
+                renderDashboard();
+            }
+            gs("saveProject", p)
+                .then(() => updateSyncStatus(true, "บันทึกลง Google Sheet แล้ว"))
+                .catch(e => showToast("บันทึกไม่สำเร็จ: " + errMsg(e)));
+        }
+
+        function loadData() {
+            updateSyncStatus(false, "กำลังโหลดจาก Google Sheet...");
+            gs("getData").then(d => {
+                projects = d.projects || [];
+                setDealers(d.dealers || []);
+                TEAMS = d.teams || [];
+                updateSyncStatus(true, "เชื่อมต่อ Google Sheet แล้ว");
+                renderSalesTeamOptions();
+                updateLoginUserOptions();
+                if (currentView === "board") renderBoard();
+                else renderDashboard();
+            }).catch(e => {
+                updateSyncStatus(false, "โหมดทำงาน Offline");
+                updateLoginUserOptions();
+                if (currentView === "board") renderBoard();
+                else renderDashboard();
+            });
+        }
+
+        function updateSyncStatus(isOnline, msg) {
+            const el = document.getElementById("sync-status");
+            const txt = document.getElementById("sync-status-text");
+            if (el && txt) {
+                el.classList.remove("hidden");
+                el.className = isOnline 
+                    ? "flex items-center text-[11px] px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-900"
+                    : "flex items-center text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700";
+                txt.innerText = msg;
+            }
+        }
+
+        window.onload = function() {
+            initTheme();
+            checkUserAuth();
+            const stageSelect = document.getElementById("sales-stage");
+            if (stageSelect && stageSelect.options.length <= 1) {
+                stageSelect.insertAdjacentHTML("beforeend",
+                    COLUMNS.map(c => `<option value="${c.id}">${c.id} ${c.title}</option>`).join(""));
+            }
+            loadData();
+        };
+
+        function initTheme() {
+            const savedTheme = LS.get("kanban_theme") || "light";
+            applyTheme(savedTheme);
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.contains("dark");
+            const newTheme = isDark ? "light" : "dark";
+            applyTheme(newTheme);
+            LS.set("kanban_theme", newTheme);
+        }
+
+        function applyTheme(theme) {
+            const btnText = document.getElementById("theme-toggle-text");
+            const btnIcon = document.getElementById("theme-toggle-icon");
+            
+            if (theme === "dark") {
+                document.documentElement.classList.add("dark");
+                if (btnText) btnText.innerText = "โหมดสว่าง";
+                if (btnIcon) btnIcon.className = "fa-solid fa-sun mr-1.5 text-amber-400";
+            } else {
+                document.documentElement.classList.remove("dark");
+                if (btnText) btnText.innerText = "โหมดมืด";
+                if (btnIcon) btnIcon.className = "fa-solid fa-moon mr-1.5 text-slate-600";
+            }
+            
+            if (currentView === "board") {
+                renderBoard();
+            } else {
+                renderDashboard();
+            }
+        }
+
+        function renderSalesTeamOptions() {
+            const select = document.getElementById("sales-team");
+            if (!select) return;
+            
+            const teams = TEAMS;
+            const currentVal = select.value;
+            select.innerHTML = `<option value="" disabled ${!currentVal ? 'selected' : ''}>-- เลือก Sales Team --</option>` +
+                teams.map(t => `<option value="${escapeHtml(t)}" ${t === currentVal ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+        }
+
+        function handleSalesTeamChange(selectedTeam) {
+            const teleEl = document.getElementById("tele-sales");
+            const obEl = document.getElementById("outbound-sales");
+            const codeEl = document.getElementById("dealer-code");
+            const nameEl = document.getElementById("dealer-name");
+            if (teleEl) teleEl.value = "";
+            if (obEl) obEl.value = "";
+            if (codeEl) codeEl.value = "";
+            if (nameEl) nameEl.value = "";
+        }
+
+        function handleTeleSalesInput(val) {
+            const query = (val || '').trim().toLowerCase();
+            const dropdown = document.getElementById("tele-dropdown");
+            if (!dropdown) return;
+
+            const selectedTeam = (document.getElementById("sales-team") ? document.getElementById("sales-team").value : "").trim().toLowerCase();
+            
+            let list = DEALER_MASTER.filter(d => {
+                if (!selectedTeam) return true;
+                return (d.salesTeam || "").trim().toLowerCase() === selectedTeam;
+            });
+            
+            const pairsMap = new Map();
+            list.forEach(d => {
+                const tName = (d.teleName || "").trim();
+                const oName = (d.obName || "").trim();
+                if (tName) {
+                    const key = tName.toLowerCase() + "___" + oName.toLowerCase();
+                    if (!pairsMap.has(key)) {
+                        pairsMap.set(key, { teleName: tName, obName: oName });
+                    }
+                }
+            });
+
+            let pairs = Array.from(pairsMap.values());
+            if (query) {
+                pairs = pairs.filter(p => p.teleName.toLowerCase().includes(query) || p.obName.toLowerCase().includes(query));
+            }
+
+            if (pairs.length === 0) {
+                dropdown.classList.add("hidden");
+                return;
+            }
+
+            dropdown.innerHTML = pairs.map(p => `
+                <div onclick="selectTelePair('${escapeHtml(p.teleName)}', '${escapeHtml(p.obName)}')" 
+                     class="px-3.5 py-2 text-xs hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 flex justify-between items-center transition">
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(p.teleName)}</span>
+                    ${p.obName ? `<span class="text-[11px] text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded">OB: ${escapeHtml(p.obName)}</span>` : ''}
+                </div>
+            `).join('');
+
+            dropdown.classList.remove("hidden");
+        }
+
+        function handleObSalesInput(val) {
+            const query = (val || '').trim().toLowerCase();
+            const dropdown = document.getElementById("ob-dropdown");
+            if (!dropdown) return;
+
+            const selectedTeam = (document.getElementById("sales-team") ? document.getElementById("sales-team").value : "").trim().toLowerCase();
+            
+            let list = DEALER_MASTER.filter(d => {
+                if (!selectedTeam) return true;
+                return (d.salesTeam || "").trim().toLowerCase() === selectedTeam;
+            });
+            
+            const pairsMap = new Map();
+            list.forEach(d => {
+                const tName = (d.teleName || "").trim();
+                const oName = (d.obName || "").trim();
+                if (oName) {
+                    const key = tName.toLowerCase() + "___" + oName.toLowerCase();
+                    if (!pairsMap.has(key)) {
+                        pairsMap.set(key, { teleName: tName, obName: oName });
+                    }
+                }
+            });
+
+            let pairs = Array.from(pairsMap.values());
+            if (query) {
+                pairs = pairs.filter(p => p.obName.toLowerCase().includes(query) || p.teleName.toLowerCase().includes(query));
+            }
+
+            if (pairs.length === 0) {
+                dropdown.classList.add("hidden");
+                return;
+            }
+
+            dropdown.innerHTML = pairs.map(p => `
+                <div onclick="selectTelePair('${escapeHtml(p.teleName)}', '${escapeHtml(p.obName)}')" 
+                     class="px-3.5 py-2 text-xs hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 flex justify-between items-center transition">
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(p.obName)}</span>
+                    ${p.teleName ? `<span class="text-[11px] text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded">Tele: ${escapeHtml(p.teleName)}</span>` : ''}
+                </div>
+            `).join('');
+
+            dropdown.classList.remove("hidden");
+        }
+
+        function selectTelePair(teleName, obName) {
+            const teleEl = document.getElementById("tele-sales");
+            const obEl = document.getElementById("outbound-sales");
+            const codeEl = document.getElementById("dealer-code");
+            const nameEl = document.getElementById("dealer-name");
+            
+            if (teleEl) teleEl.value = teleName;
+            if (obEl) obEl.value = obName;
+            
+            hideAllDropdowns();
+
+            if (codeEl) codeEl.value = "";
+            if (nameEl) nameEl.value = "";
+            checkStepUnlock();
+        }
+
+        function handleDealerCodeInput(val) {
+            const query = (val || '').trim().toLowerCase();
+            const dropdown = document.getElementById("code-dropdown");
+            if (!dropdown) return;
+
+            const selectedTeam = (document.getElementById("sales-team") ? document.getElementById("sales-team").value : "").trim().toLowerCase();
+            const tele = (document.getElementById("tele-sales") ? document.getElementById("tele-sales").value : "").trim().toLowerCase();
+            const ob = (document.getElementById("outbound-sales") ? document.getElementById("outbound-sales").value : "").trim().toLowerCase();
+
+            let list = DEALER_MASTER.filter(d => {
+                const dTeam = (d.salesTeam || "").trim().toLowerCase();
+                const dTele = (d.teleName || "").trim().toLowerCase();
+                const dOb = (d.obName || "").trim().toLowerCase();
+
+                const matchTeam = !selectedTeam || dTeam === selectedTeam;
+                
+                let matchSales = true;
+                if (tele && ob) {
+                    matchSales = (dTele === tele && dOb === ob);
+                } else if (tele) {
+                    matchSales = (dTele === tele);
+                } else if (ob) {
+                    matchSales = (dOb === ob);
+                }
+
+                return matchTeam && matchSales;
+            });
+
+            if (query) {
+                list = list.filter(d => (d.code || '').toLowerCase().includes(query) || (d.name || '').toLowerCase().includes(query));
+            }
+
+            if (list.length === 0) {
+                dropdown.classList.add("hidden");
+                return;
+            }
+
+            dropdown.innerHTML = list.slice(0, 50).map(d => `
+                <div onclick="selectDealer('${escapeHtml(d.code)}', '${escapeHtml(d.name)}', '${escapeHtml(d.salesTeam)}', '${escapeHtml(d.teleName)}', '${escapeHtml(d.obName)}')" 
+                     class="px-3.5 py-2 text-xs hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 flex justify-between items-center transition">
+                    <span class="font-mono font-bold text-rose-700 dark:text-rose-400">${escapeHtml(d.code)}</span>
+                    <span class="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[200px] ml-2">${escapeHtml(d.name)}</span>
+                </div>
+            `).join('');
+
+            dropdown.classList.remove("hidden");
+        }
+
+        function handleDealerNameInput(val) {
+            const query = (val || '').trim().toLowerCase();
+            const dropdown = document.getElementById("dealer-dropdown");
+            if (!dropdown) return;
+
+            const selectedTeam = (document.getElementById("sales-team") ? document.getElementById("sales-team").value : "").trim().toLowerCase();
+            const tele = (document.getElementById("tele-sales") ? document.getElementById("tele-sales").value : "").trim().toLowerCase();
+            const ob = (document.getElementById("outbound-sales") ? document.getElementById("outbound-sales").value : "").trim().toLowerCase();
+
+            let list = DEALER_MASTER.filter(d => {
+                const dTeam = (d.salesTeam || "").trim().toLowerCase();
+                const dTele = (d.teleName || "").trim().toLowerCase();
+                const dOb = (d.obName || "").trim().toLowerCase();
+
+                const matchTeam = !selectedTeam || dTeam === selectedTeam;
+
+                let matchSales = true;
+                if (tele && ob) {
+                    matchSales = (dTele === tele && dOb === ob);
+                } else if (tele) {
+                    matchSales = (dTele === tele);
+                } else if (ob) {
+                    matchSales = (dOb === ob);
+                }
+
+                return matchTeam && matchSales;
+            });
+
+            if (query) {
+                list = list.filter(d => (d.name || '').toLowerCase().includes(query) || (d.code || '').toLowerCase().includes(query));
+            }
+
+            if (list.length === 0) {
+                dropdown.classList.add("hidden");
+                return;
+            }
+
+            dropdown.innerHTML = list.slice(0, 50).map(d => `
+                <div onclick="selectDealer('${escapeHtml(d.code)}', '${escapeHtml(d.name)}', '${escapeHtml(d.salesTeam)}', '${escapeHtml(d.teleName)}', '${escapeHtml(d.obName)}')" 
+                     class="px-3.5 py-2 text-xs hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 flex justify-between items-center transition">
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate flex-1 mr-2">${escapeHtml(d.name)}</span>
+                    <span class="font-mono text-[11px] bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">${escapeHtml(d.code)}</span>
+                </div>
+            `).join('');
+
+            dropdown.classList.remove("hidden");
+        }
+
+        function selectDealer(code, name, salesTeam, teleName, obName) {
+            const codeEl = document.getElementById("dealer-code");
+            const nameEl = document.getElementById("dealer-name");
+            const teleEl = document.getElementById("tele-sales");
+            const obEl = document.getElementById("outbound-sales");
+            
+            if (codeEl) codeEl.value = code;
+            if (nameEl) nameEl.value = name;
+            
+            if (salesTeam) {
+                const teamSelect = document.getElementById("sales-team");
+                if (teamSelect && !teamSelect.value) teamSelect.value = salesTeam;
+            }
+            if (teleName && teleEl) teleEl.value = teleName;
+            if (obName && obEl) obEl.value = obName;
+
+            hideAllDropdowns();
+            checkStepUnlock();
+        }
+
+        function hideAllDropdowns() {
+            document.getElementById("tele-dropdown")?.classList.add("hidden");
+            document.getElementById("ob-dropdown")?.classList.add("hidden");
+            document.getElementById("code-dropdown")?.classList.add("hidden");
+            document.getElementById("dealer-dropdown")?.classList.add("hidden");
+        }
+
+        document.addEventListener("click", function(e) {
+            if (!e.target.closest(".relative")) {
+                hideAllDropdowns();
+            }
+        });
+
+        function checkStepUnlock() {
+            const team = document.getElementById("sales-team") ? document.getElementById("sales-team").value : "";
+            const tele = document.getElementById("tele-sales") ? document.getElementById("tele-sales").value.trim() : "";
+            const ob = document.getElementById("outbound-sales") ? document.getElementById("outbound-sales").value.trim() : "";
+
+            const step2El = document.getElementById("section-step-2");
+            const badge2 = document.getElementById("badge-step-2");
+            const lock2 = document.getElementById("lock-status-2");
+
+            const isStep1Complete = !!(team && (tele || ob));
+
+            if (step2El && badge2 && lock2) {
+                if (isStep1Complete) {
+                    step2El.classList.remove("opacity-50", "pointer-events-none");
+                    badge2.className = "bg-rose-700 dark:bg-rose-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock2.className = "text-[11px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900";
+                    lock2.innerHTML = `Step 2 จาก 5`;
+                } else {
+                    step2El.classList.add("opacity-50", "pointer-events-none");
+                    badge2.className = "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock2.className = "text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700";
+                    lock2.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 1 ก่อน`;
+                }
+            }
+
+            const code = document.getElementById("dealer-code") ? document.getElementById("dealer-code").value.trim() : "";
+            const name = document.getElementById("dealer-name") ? document.getElementById("dealer-name").value.trim() : "";
+
+            const step3El = document.getElementById("section-step-3");
+            const badge3 = document.getElementById("badge-step-3");
+            const lock3 = document.getElementById("lock-status-3");
+
+            const isStep2Complete = isStep1Complete && (code || name);
+
+            if (step3El && badge3 && lock3) {
+                if (isStep2Complete) {
+                    step3El.classList.remove("opacity-50", "pointer-events-none");
+                    badge3.className = "bg-rose-700 dark:bg-rose-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock3.className = "text-[11px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900";
+                    lock3.innerHTML = `Step 3 จาก 5`;
+                } else {
+                    step3El.classList.add("opacity-50", "pointer-events-none");
+                    badge3.className = "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock3.className = "text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700";
+                    lock3.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน`;
+                }
+            }
+
+            const step4El = document.getElementById("section-step-4");
+            const badge4 = document.getElementById("badge-step-4");
+            const lock4 = document.getElementById("lock-status-4");
+
+            if (step4El && badge4 && lock4) {
+                if (isStep2Complete) {
+                    step4El.classList.remove("opacity-50", "pointer-events-none");
+                    badge4.className = "bg-rose-700 dark:bg-rose-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock4.className = "text-[11px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900";
+                    lock4.innerHTML = `Step 4 จาก 5`;
+                } else {
+                    step4El.classList.add("opacity-50", "pointer-events-none");
+                    badge4.className = "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock4.className = "text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700";
+                    lock4.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน`;
+                }
+            }
+
+            const step5El = document.getElementById("section-step-5");
+            const badge5 = document.getElementById("badge-step-5");
+            const lock5 = document.getElementById("lock-status-5");
+
+            if (step5El && badge5 && lock5) {
+                if (isStep2Complete) {
+                    step5El.classList.remove("opacity-50", "pointer-events-none");
+                    badge5.className = "bg-rose-700 dark:bg-rose-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock5.className = "text-[11px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900";
+                    lock5.innerHTML = `Step 5 จาก 5`;
+                } else {
+                    step5El.classList.add("opacity-50", "pointer-events-none");
+                    badge5.className = "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold shadow-xs";
+                    lock5.className = "text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700";
+                    lock5.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>โปรดกรอกข้อ 2 ก่อน`;
+                }
+            }
+        }
+
+        function openModal(id = null) {
+            hideAllDropdowns();
+            const form = document.getElementById("project-form");
+            if (form) form.reset();
+            renderSalesTeamOptions();
+
+            const getVal = id => document.getElementById(id);
+
+            if (id) {
+                const p = projects.find(item => item.id === id);
+                if (p) {
+                    if (getVal("modal-title")) getVal("modal-title").innerText = "แก้ไขข้อมูลโครงการ";
+                    if (getVal("project-id")) getVal("project-id").value = p.id || "";
+                    if (getVal("sales-team")) getVal("sales-team").value = p.salesTeam || "";
+                    if (getVal("project-name")) getVal("project-name").value = p.projectName || "";
+                    if (getVal("tor-detail")) getVal("tor-detail").value = p.torDetail || "";
+                    if (getVal("condition-attach")) getVal("condition-attach").value = p.conditionAttach || "";
+                    if (getVal("submit-date")) getVal("submit-date").value = p.submitDate || "";
+                    if (getVal("announce-date")) getVal("announce-date").value = p.announceDate || "";
+                    if (getVal("budget")) getVal("budget").value = p.budget || "";
+                    if (getVal("doc-appointment")) getVal("doc-appointment").checked = !!p.docAppointment;
+                    if (getVal("doc-certificate")) getVal("doc-certificate").checked = !!p.docCertificate;
+                    if (getVal("dealer-code")) getVal("dealer-code").value = p.dealerCode || "";
+                    if (getVal("dealer-name")) getVal("dealer-name").value = p.dealerName || "";
+                    if (getVal("enduser-name")) getVal("enduser-name").value = p.enduserName || "";
+                    if (getVal("enduser-province")) getVal("enduser-province").value = p.enduserProvince || "";
+                    if (getVal("contact-name")) getVal("contact-name").value = p.contactName || "";
+                    if (getVal("contact-email")) getVal("contact-email").value = p.contactEmail || "";
+                    if (getVal("contact-phone")) getVal("contact-phone").value = p.contactPhone || "";
+                    if (getVal("brand-comgroup")) getVal("brand-comgroup").value = p.brandComGroup || "";
+                    if (getVal("tele-sales")) getVal("tele-sales").value = p.teleSales || "";
+                    if (getVal("outbound-sales")) getVal("outbound-sales").value = p.outboundSales || "";
+                    if (getVal("sales-stage")) getVal("sales-stage").value = p.salesStage || "";
+                    if (getVal("next-followup-date")) getVal("next-followup-date").value = p.nextFollowupDate || "";
+                    if (getVal("project-priority")) getVal("project-priority").value = p.priority || "ปกติ";
+
+                    if (getVal("btn-delete")) getVal("btn-delete").classList.remove("hidden");
+                }
+            } else {
+                if (getVal("modal-title")) getVal("modal-title").innerText = "สร้างโครงการใหม่";
+                if (getVal("project-id")) getVal("project-id").value = "";
+                if (getVal("sales-team")) getVal("sales-team").value = "";
+                if (getVal("sales-stage")) getVal("sales-stage").value = "";
+                if (getVal("next-followup-date")) getVal("next-followup-date").value = "";
+                if (getVal("project-priority")) getVal("project-priority").value = "ปกติ";
+                if (getVal("btn-delete")) getVal("btn-delete").classList.add("hidden");
+            }
+
+            checkStepUnlock();
+            const modal = document.getElementById("project-modal");
+            if (modal) modal.classList.remove("hidden");
+        }
+
+        function closeModal() {
+            hideAllDropdowns();
+            const modal = document.getElementById("project-modal");
+            if (modal) modal.classList.add("hidden");
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            try {
+                const getV = id => {
+                    const el = document.getElementById(id);
+                    return el ? el.value : '';
+                };
+                const getC = id => {
+                    const el = document.getElementById(id);
+                    return el ? el.checked : false;
+                };
+
+                const id = getV("project-id");
+                const projectData = {
+                    id: id || "proj-" + Date.now(),
+                    salesTeam: getV("sales-team"),
+                    projectName: getV("project-name"),
+                    torDetail: getV("tor-detail"),
+                    conditionAttach: getV("condition-attach"),
+                    submitDate: getV("submit-date"),
+                    announceDate: getV("announce-date"),
+                    budget: parseFloat(getV("budget")) || 0,
+                    docAppointment: getC("doc-appointment"),
+                    docCertificate: getC("doc-certificate"),
+                    dealerCode: getV("dealer-code"),
+                    dealerName: getV("dealer-name"),
+                    enduserName: getV("enduser-name"),
+                    enduserProvince: getV("enduser-province"),
+                    contactName: getV("contact-name"),
+                    contactEmail: getV("contact-email"),
+                    contactPhone: getV("contact-phone"),
+                    brandComGroup: getV("brand-comgroup"),
+                    teleSales: getV("tele-sales"),
+                    outboundSales: getV("outbound-sales"),
+                    salesStage: getV("sales-stage") || "20%",
+                    nextFollowupDate: getV("next-followup-date"),
+                    priority: getV("project-priority") || "ปกติ",
+                    updatedAt: new Date().toISOString()
+                };
+
+                if (id) {
+                    const index = projects.findIndex(p => p.id === id);
+                    if (index !== -1) projects[index] = projectData;
+                } else {
+                    projects.push(projectData);
+                }
+
+                closeModal();
+                saveData(projectData);
+                showToast(id ? "ปรับปรุงข้อมูลสำเร็จ" : "บันทึกโครงการใหม่เรียบร้อย");
+            } catch (err) {
+                console.error("Form submit error:", err);
+                closeModal();
+                showToast("บันทึกเรียบร้อย");
+            }
+        }
+
+        function deleteProject() {
+            const idEl = document.getElementById("project-id");
+            const id = idEl ? idEl.value : '';
+            if (!id) return;
+            projects = projects.filter(p => p.id !== id);
+            closeModal();
+            if (currentView === "board") renderBoard();
+            else renderDashboard();
+            gs("deleteProject", id).catch(e => showToast("ลบไม่สำเร็จ: " + errMsg(e)));
+            showToast("ลบรายการเรียบร้อยแล้ว");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            const toastMsg = document.getElementById("toast-message");
+            if (!toast || !toastMsg) return;
+            toastMsg.innerText = msg;
+            toast.classList.remove("translate-y-20", "opacity-0");
+            setTimeout(() => {
+                toast.classList.add("translate-y-20", "opacity-0");
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>
