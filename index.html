@@ -58,10 +58,11 @@
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 </head>
 <body class="text-slate-800 dark:text-slate-100 bg-[#f8fafc] dark:bg-slate-900 flex flex-col h-screen overflow-hidden transition-colors duration-200">
 
-    <!-- Login Modal Layer -->
+    <!-- Microsoft sign-in layer -->
     <div id="login-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-700 text-center space-y-5">
             <div class="w-14 h-14 bg-rose-100 dark:bg-rose-950 text-rose-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
@@ -69,22 +70,16 @@
             </div>
             <div>
                 <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">เข้าสู่ระบบ Kanban Tracker</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">โปรดเลือกรายชื่อผู้ใช้งานเพื่อเข้าดูข้อมูลเฉพาะส่วนของคุณและคู่ Sales</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">ใช้บัญชี Microsoft ขององค์กรเท่านั้น จะเห็นเฉพาะโครงการของคุณและคู่ Tele/OB</p>
             </div>
 
-            <div class="space-y-3 text-left">
-                <div>
-                    <label class="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">ชื่อผู้ใช้งาน (Tele / OB Sales)</label>
-                    <select id="login-user-select" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-rose-600 font-medium">
-                        <option value="">-- เลือกรายชื่อผู้ใช้งาน --</option>
-                    </select>
-                </div>
-            </div>
+            <p id="login-error" class="hidden text-xs text-left text-rose-800 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-200 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2"></p>
 
-            <button onclick="handleLogin()" class="w-full py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-semibold text-xs shadow-md transition transform active:scale-95 flex items-center justify-center space-x-2 cursor-pointer">
+            <button onclick="msSignIn()" class="w-full py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-semibold text-xs shadow-md transition transform active:scale-95 flex items-center justify-center space-x-2 cursor-pointer">
                 <i class="fa-brands fa-microsoft"></i>
-                <span>เข้าสู่ระบบด้วย Microsoft 365</span>
+                <span>เข้าสู่ระบบด้วย Microsoft</span>
             </button>
+            <button id="login-logout" onclick="handleLogout()" class="hidden text-[11px] text-slate-500 dark:text-slate-400 underline cursor-pointer">ออกจากระบบ / สลับบัญชี</button>
         </div>
     </div>
 
@@ -483,13 +478,48 @@
         const DEALER_MASTER = [];
         let TEAMS = [];
 
-        const gs = (fn, ...a) => new Promise((ok, fail) => {
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn](...a);
-            } else {
-                fail(new Error("ไม่ได้รันผ่าน Google Apps Script Environment"));
-            }
+        // ---- Microsoft sign-in (MSAL) + Apps Script API ----
+        const CONFIG = {
+            API_URL: "https://script.google.com/macros/s/AKfycbyUhAnriUISdvRNlN73ZVv9baRMKTJiiuAcDldQ9iorkWUjQ-z41HWIEqNkgZNsp-JIoQ/exec",    // https://script.google.com/macros/s/.../exec
+            MS_CLIENT_ID: "e52af21a-a75f-4cc0-92aa-b190a6e41af6", // Entra ID > App registrations > Application (client) ID
+            MS_TENANT_ID: "fcaf82c9-bebd-47e6-b057-5dce01865032"    // Entra ID > Directory (tenant) ID
+        };
+        const SCOPES = ["User.Read"];
+        // Must match the Redirect URI registered in Entra ID exactly.
+        const REDIRECT_URI = window.location.origin + window.location.pathname.replace(/index\.html$/, "");
+        const msApp = new msal.PublicClientApplication({
+            auth: {
+                clientId: CONFIG.MS_CLIENT_ID,
+                authority: "https://login.microsoftonline.com/" + CONFIG.MS_TENANT_ID,
+                redirectUri: REDIRECT_URI
+            },
+            cache: { cacheLocation: "localStorage" }
         });
+
+        async function getToken() {
+            const account = msApp.getActiveAccount();
+            if (!account) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+            try {
+                return (await msApp.acquireTokenSilent({ scopes: SCOPES, account })).accessToken;
+            } catch (e) {
+                msApp.acquireTokenRedirect({ scopes: SCOPES, account });
+                throw new Error("กำลังไปเข้าสู่ระบบ Microsoft ใหม่...");
+            }
+        }
+
+        // Every server call carries the Microsoft token; the server checks it and filters the data.
+        // text/plain keeps this a "simple" request (no CORS preflight, which Apps Script cannot answer).
+        const gs = async (fn, ...args) => {
+            const token = await getToken();
+            const res = await fetch(CONFIG.API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ fn, args, token })
+            });
+            const j = await res.json();
+            if (!j.ok) throw new Error(j.error);
+            return j.data;
+        };
         const errMsg = e => (e && e.message) || e;
 
         const LS = {
@@ -498,7 +528,7 @@
             remove: k => { try { localStorage.removeItem(k); } catch (e) {} }
         };
 
-        let currentUser = LS.get("kanban_user") || "";
+        let currentUser = null; // { name, email, admin } from the server after sign-in
 
         function setDealers(list) {
             DEALER_MASTER.length = 0;
@@ -524,61 +554,43 @@
             const overlay = document.getElementById("login-overlay");
             const userBadge = document.getElementById("current-user-badge");
             const userNameText = document.getElementById("current-user-name");
-
-            if (!currentUser) {
-                if (overlay) overlay.classList.remove("hidden");
-                if (userBadge) userBadge.classList.add("hidden");
-            } else {
-                if (overlay) overlay.classList.add("hidden");
-                if (userBadge) userBadge.classList.remove("hidden");
-                if (userNameText) userNameText.innerText = currentUser === "ADMIN" ? "ADMIN" : currentUser.split(' ')[0];
+            if (overlay) overlay.classList.toggle("hidden", !!currentUser);
+            if (userBadge) {
+                userBadge.classList.toggle("hidden", !currentUser);
+                userBadge.classList.toggle("flex", !!currentUser);
+            }
+            if (currentUser && userNameText) {
+                userNameText.innerText = currentUser.name + (currentUser.admin ? " (Admin)" : "");
             }
         }
 
-        function handleLogin() {
-            const select = document.getElementById("login-user-select");
-            const selectedUser = select ? select.value : "";
-            if (!selectedUser) {
-                alert("โปรดเลือกรายชื่อผู้ใช้งานก่อนเข้าสู่ระบบ");
-                return;
-            }
-            currentUser = selectedUser;
-            LS.set("kanban_user", currentUser);
+        function showAuthError(msg) {
+            currentUser = null;
             checkUserAuth();
-            handleFilterChange();
+            const el = document.getElementById("login-error");
+            if (el) { el.innerText = msg; el.classList.remove("hidden"); }
+            const out = document.getElementById("login-logout");
+            if (out) out.classList.toggle("hidden", !msApp.getActiveAccount());
+        }
+
+        async function msStart() {
+            if (Object.values(CONFIG).some(v => String(v).startsWith("PASTE_"))) {
+                showAuthError("ยังไม่ได้ตั้งค่า CONFIG (API_URL / MS_CLIENT_ID / MS_TENANT_ID) ใน Index.html");
+                return false;
+            }
+            const res = await msApp.handleRedirectPromise();
+            const account = (res && res.account) || msApp.getAllAccounts()[0];
+            if (!account) { checkUserAuth(); return false; }
+            msApp.setActiveAccount(account);
+            return true;
+        }
+
+        function msSignIn() {
+            msApp.loginRedirect({ scopes: SCOPES });
         }
 
         function handleLogout() {
-            currentUser = "";
-            LS.remove("kanban_user");
-            checkUserAuth();
-        }
-
-        function updateLoginUserOptions() {
-            const select = document.getElementById("login-user-select");
-            if (!select) return;
-
-            const names = new Set();
-            DEALER_MASTER.forEach(d => {
-                if (d.teleName && d.teleName.trim()) names.add(d.teleName.trim());
-                if (d.obName && d.obName.trim()) names.add(d.obName.trim());
-            });
-            projects.forEach(p => {
-                if (p.teleSales && p.teleSales.trim()) names.add(p.teleSales.trim());
-                if (p.outboundSales && p.outboundSales.trim()) names.add(p.outboundSales.trim());
-            });
-
-            const sortedNames = Array.from(names).sort();
-            
-            select.innerHTML = `<option value="">-- เลือกรายชื่อผู้ใช้งาน --</option>` +
-                `<option value="ADMIN">👑 ผู้ดูแลระบบ (ดูได้ทั้งหมด)</option>` +
-                `<option value="Phanwadee_Si Sitthikedkan">Phanwadee_Si Sitthikedkan</option>` +
-                `<option value="Pakawat Sangsuk">Pakawat Sangsuk</option>` +
-                sortedNames.filter(n => n !== "Phanwadee_Si Sitthikedkan" && n !== "Pakawat Sangsuk").map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-            
-            if (currentUser) {
-                select.value = currentUser;
-            }
+            msApp.logoutRedirect({ account: msApp.getActiveAccount(), postLogoutRedirectUri: REDIRECT_URI });
         }
 
         function switchView(view) {
@@ -618,14 +630,6 @@
             const obNameFilter = document.getElementById("filter-ob-name") ? document.getElementById("filter-ob-name").value : "";
 
             return projects.filter(p => {
-                if (currentUser && currentUser !== "ADMIN") {
-                    const teleName = (p.teleSales || "").trim().toLowerCase();
-                    const obName = (p.outboundSales || "").trim().toLowerCase();
-                    const userClean = currentUser.trim().toLowerCase();
-                    const isMyProject = teleName.includes(userClean) || obName.includes(userClean);
-                    if (!isMyProject) return false;
-                }
-
                 const matchQuery = !searchQuery || 
                     (p.projectName || "").toLowerCase().includes(searchQuery) ||
                     (p.dealerName || "").toLowerCase().includes(searchQuery) ||
@@ -1143,16 +1147,15 @@
                 projects = d.projects || [];
                 setDealers(d.dealers || []);
                 TEAMS = d.teams || [];
+                currentUser = d.user;
+                checkUserAuth();
                 updateSyncStatus(true, "เชื่อมต่อ Google Sheet แล้ว");
                 renderSalesTeamOptions();
-                updateLoginUserOptions();
                 if (currentView === "board") renderBoard();
                 else renderDashboard();
             }).catch(e => {
-                updateSyncStatus(false, "โหมดทำงาน Offline");
-                updateLoginUserOptions();
-                if (currentView === "board") renderBoard();
-                else renderDashboard();
+                updateSyncStatus(false, "โหลดข้อมูลไม่สำเร็จ");
+                showAuthError(errMsg(e));
             });
         }
 
@@ -1168,15 +1171,18 @@
             }
         }
 
-        window.onload = function() {
+        window.onload = async function() {
             initTheme();
-            checkUserAuth();
             const stageSelect = document.getElementById("sales-stage");
             if (stageSelect && stageSelect.options.length <= 1) {
                 stageSelect.insertAdjacentHTML("beforeend",
                     COLUMNS.map(c => `<option value="${c.id}">${c.id} ${c.title}</option>`).join(""));
             }
-            loadData();
+            try {
+                if (await msStart()) loadData();
+            } catch (e) {
+                showAuthError(errMsg(e));
+            }
         };
 
         function initTheme() {
